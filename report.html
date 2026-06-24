@@ -1,0 +1,16 @@
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Image</th>
+    </tr>
+
+    {% for panel in panels %}
+    <tr>
+        <td>{{ panel.title }}</td>
+        <td>
+            <img src="data:image/png;base64,{{ panel.embedded_image }}"
+                 alt="Embedded PNG">
+        </td>
+    </tr>
+    {% endfor %}
+</table>
