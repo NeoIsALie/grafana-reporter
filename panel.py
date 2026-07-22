@@ -35,6 +35,7 @@ class Panel:
         self.embedded_image : bytes | None = None
         self.dashboard_uid = dashboard_uid
         self.variables: dict = variables
+        self.render_url = ""
 
     @property
     def panel_id(self):
@@ -48,7 +49,7 @@ class Panel:
     def position(self) -> dict:
         return {'x': self.x, 'y': self.y, 'w': self.width, 'h': self.height}
 
-    async def render_image(self) -> None:
+    def get_render_url(self):
         params: dict[str, str] = {
             'orgId': '1',
             'hideLogo': 'true',
@@ -59,9 +60,12 @@ class Panel:
         }
         params.update(self.variables)
         encoded_params = urlencode(params)
-        render_url = f"{os.getenv('GRAFANA_URL')}/render/d-solo/{self.dashboard_uid}?{encoded_params}"
+        self.render_url = f"{os.getenv('GRAFANA_URL')}/render/d-solo/{self.dashboard_uid}?{encoded_params}"
+
+    async def render_image(self) -> None:
+        self.get_render_url()
         timeout = Timeout(connect=120.0, read=120.0, write=3.0, pool=2.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(render_url)
+            response = await client.get(self.render_url)
             if response.status_code == httpx.codes.OK:
                 self.embedded_image = base64.b64encode(response.content).decode("ascii")

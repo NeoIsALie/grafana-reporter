@@ -1,4 +1,6 @@
 import os
+from typing import List
+
 from httpx import AsyncClient
 from panel import Panel
 from dotenv import load_dotenv
@@ -12,7 +14,7 @@ class Dashboard:
         self._title = None
         self.dashboard_json = None
         self.variables = None
-        self.panels: list[Panel] | None = None
+        self.panels: List[Panel] | None = None
 
 
     @property
