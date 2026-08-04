@@ -1,4 +1,6 @@
 import os
+from typing import List
+
 from httpx import Timeout
 from urllib.parse import urlencode
 import httpx
@@ -24,10 +26,12 @@ class Panel:
             panel_type: str,
             position: dict,
             variables: dict,
+            parent_panel: int | None = None
         ) -> None:
         self._panel_id = panel_id
         self._title = title
         self.panel_type = panel_type
+        self.parent_panel = parent_panel
         self.x = position['x']
         self.y = position['y']
         self.width = position['w']
@@ -36,6 +40,7 @@ class Panel:
         self.dashboard_uid = dashboard_uid
         self.variables: dict = variables
         self.render_url = ""
+        self.children_panels: List[int] | None = None
 
     @property
     def panel_id(self):
@@ -64,7 +69,7 @@ class Panel:
 
     async def render_image(self) -> None:
         self.get_render_url()
-        timeout = Timeout(connect=120.0, read=120.0, write=3.0, pool=2.0)
+        timeout = Timeout(connect=15.0, read=15.0, write=3.0, pool=2.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(self.render_url)
             if response.status_code == httpx.codes.OK:

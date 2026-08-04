@@ -1,0 +1,39 @@
+<head>
+    <meta charset="UTF-8">
+    <title>{{ dashboard.title }}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="content-header" data-theme="{{ config.theme }}">
+        <div class="content-header-left" data-theme="{{ config.theme }}">generated on {{ request_date }}</div>
+        <div class="content-header-right" data-theme="{{ config.theme }}">Datetime range: {{ dashboard.date_range }}</div>
+        <br />
+        {{ dashboard.title }}
+        {% if dashboard.variables %}
+        <br />
+        <div class="content-header-left" data-theme="{{ config.theme }}">{{ dashboard.print_variables() }}</div>
+        {% endif %}
+    </div>
+    <div class="container">
+            {% for panel in panels %}
+                {% if panel.children_panels %}
+                    <input type="checkbox" id="{{ panel.panel_id }}"  class="accordion-toggle">
+                    <label for="{{ panel.panel_id }}" class="accordion-header">
+                        {{ panel.title }}
+                    </label>
+                    <div class="accordion-content">
+                        {% for child_panel in panel.children_panels %}
+                            {% set child = dashboard.get_panel(child_panel) %}
+                            {% if child.embedded_image %}
+                            <div class="image-title"> {{ child.title }}
+                                <img src="data:image/png;base64,{{ child.embedded_image }}"
+                                 alt="{{child.title}}">
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+    </div>
+</body>
