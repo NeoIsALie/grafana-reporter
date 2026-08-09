@@ -1,11 +1,12 @@
 import os
-from typing import List
+from typing import List, Dict
 
 from httpx import AsyncClient
 from panel import Panel
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class Dashboard:
     def __init__(self, client: AsyncClient, uid: str):

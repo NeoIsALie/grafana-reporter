@@ -35,5 +35,18 @@
                     </div>
                 {% endif %}
             {% endfor %}
-    </div>
+           <div class="image-grid">
+                {% for panel in panels %}
+                    {% if not panel.children_panels and panel.embedded_image %}
+                        <div class="image-item">
+                            <div class="image-title">{{ panel.title }}</div>
+                            <img
+                                src="data:image/png;base64,{{ panel.embedded_image }}"
+                                alt="{{ panel.title }}"
+                            >
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
 </body>
