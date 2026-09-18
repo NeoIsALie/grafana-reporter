@@ -13,25 +13,23 @@ load_dotenv()
 
 
 async def list_dashboards(config: Config) -> list[str]:
-   search_endpoint = f"{config.url}/api/search"
-   async with httpx.AsyncClient() as client:
-       response = await client.get(search_endpoint)
-       dash_list = []
-       if response.status_code == 200:
-           dash_list = [
-               dashboard.get('uid')
-               for dashboard in response.json()
-               if dashboard.get('type') == 'dash-db'
-           ]
+    search_endpoint = f"{config.url}/api/search"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(search_endpoint)
+        dash_list = []
+        if response.status_code == 200:
+            dash_list = [
+                dashboard.get("uid")
+                for dashboard in response.json()
+                if dashboard.get("type") == "dash-db"
+            ]
 
-       return dash_list
+        return dash_list
 
 
 async def main():
     config = Config()
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     headers["Authorization"] = f"Bearer {os.getenv('GRAFANA_TOKEN')}"
     request_date = date.today()
     client = httpx.AsyncClient()
@@ -47,12 +45,17 @@ async def main():
     main_panels = [panel for panel in dashboard.panels if panel.parent_panel is None]
     main_panels.sort(key=lambda p: p.panel_id)
 
-
     env = Environment(loader=FileSystemLoader("."))
     template = env.get_template("report.j2")
 
-    html = template.render(panels=main_panels, config=config, request_date=request_date, dashboard=dashboard)
+    html = template.render(
+        panels=main_panels,
+        config=config,
+        request_date=request_date,
+        dashboard=dashboard,
+    )
     with open("output_report_new.html", "w", encoding="utf-8") as f:
         f.write(html)
+
 
 asyncio.run(main())
