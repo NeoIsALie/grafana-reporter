@@ -12,5 +12,5 @@ class Config(BaseSettings):
         env_prefix="GRAFANA_",
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )

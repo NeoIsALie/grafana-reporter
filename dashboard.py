@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from httpx import AsyncClient
 from panel import Panel
@@ -15,7 +14,7 @@ class Dashboard:
         self._title = None
         self.dashboard_json = None
         self.variables = None
-        self.panels: List[Panel] | None = None
+        self.panels: list[Panel] | None = None
 
     @property
     def title(self):
