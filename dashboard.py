@@ -1,11 +1,12 @@
 import os
-from typing import List
+from typing import List, Dict
 
 from httpx import AsyncClient
 from panel import Panel
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class Dashboard:
     def __init__(self, client: AsyncClient, uid: str):
@@ -20,6 +21,14 @@ class Dashboard:
     @property
     def title(self):
         return self._title
+
+    @property
+    def date_range(self):
+        return f"{self.variables['from']} to {self.variables['to']}"
+
+
+    def print_variables(self):
+        return ", ".join(f"{k}={v}" for k, v in self.variables.items())
 
     async def get_dashboard(self) -> None:
         search_endpoint = f"{os.getenv("GRAFANA_URL")}/api/dashboards/uid/{self.uid}"
@@ -52,6 +61,15 @@ class Dashboard:
                         )
                     )
                 else:
+                    panel_cls = Panel(
+                            panel_id=panel.get('id'),
+                            title=panel.get('title'),
+                            panel_type=panel.get('type'),
+                            position=panel["gridPos"],
+                            dashboard_uid=self.uid,
+                            variables=self.variables,
+                        )
+                    panel_cls.children_panels = []
                     for extra_panel in panel['panels']:
                         self.panels.append(
                             Panel(
@@ -61,5 +79,13 @@ class Dashboard:
                                 position=extra_panel["gridPos"],
                                 dashboard_uid=self.uid,
                                 variables=self.variables,
+                                parent_panel=extra_panel.get('id')
                             )
                         )
+                        panel_cls.children_panels.append(extra_panel.get('id'))
+                    self.panels.append(panel_cls)
+
+    def get_panel(self, panel_id: int) -> Panel:
+        for panel in self.panels:
+            if panel.panel_id == panel_id:
+                return panel

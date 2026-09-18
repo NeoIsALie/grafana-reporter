@@ -1,29 +1,19 @@
 import asyncio
 import os
-import time
+from datetime import date
+
 from jinja2 import Environment, FileSystemLoader
 import httpx
 from dotenv import load_dotenv
+
+from config import Config
 from dashboard import Dashboard
 
 load_dotenv()
 
 
-USE_API_KEY = True
-
-
-headers = {
-   "Content-Type": "application/json"
-}
-
-
-if USE_API_KEY:
-   headers["Authorization"] = f"Bearer {os.getenv('GRAFANA_TOKEN')}"
-
-
-
-async def list_dashboards() -> list:
-   search_endpoint = f"{os.getenv("GRAFANA_URL")}/api/search"
+async def list_dashboards(config: Config) -> list[str]:
+   search_endpoint = f"{config.url}/api/search"
    async with httpx.AsyncClient() as client:
        response = await client.get(search_endpoint)
        dash_list = []
@@ -37,23 +27,32 @@ async def list_dashboards() -> list:
        return dash_list
 
 
-
 async def main():
+    config = Config()
+    headers = {
+        "Content-Type": "application/json"
+    }
+    headers["Authorization"] = f"Bearer {os.getenv('GRAFANA_TOKEN')}"
+    request_date = date.today()
     client = httpx.AsyncClient()
-    dashs = await list_dashboards()
+    dashs = await list_dashboards(config)
     dashboard = Dashboard(uid=dashs[0], client=client)
     await dashboard.get_dashboard()
     dashboard.get_variables()
     dashboard.list_panels()
+
     for panel in dashboard.panels:
         await panel.render_image()
-        time.sleep(3)
+
+    main_panels = [panel for panel in dashboard.panels if panel.parent_panel is None]
+    main_panels.sort(key=lambda p: p.panel_id)
+
 
     env = Environment(loader=FileSystemLoader("."))
-    template = env.get_template("report.html")
+    template = env.get_template("report.j2")
 
-    html = template.render(panels=dashboard.panels)
-    with open("output_report.html", "w", encoding="utf-8") as f:
+    html = template.render(panels=main_panels, config=config, request_date=request_date, dashboard=dashboard)
+    with open("output_report_new.html", "w", encoding="utf-8") as f:
         f.write(html)
-asyncio.run(main())
 
+asyncio.run(main())
