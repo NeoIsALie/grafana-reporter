@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import os
 from datetime import date
 
@@ -12,26 +13,35 @@ from dashboard import Dashboard
 load_dotenv()
 
 
-async def list_dashboards(config: Config) -> list[str]:
-   search_endpoint = f"{config.url}/api/search"
-   async with httpx.AsyncClient() as client:
-       response = await client.get(search_endpoint)
-       dash_list = []
-       if response.status_code == 200:
-           dash_list = [
-               dashboard.get('uid')
-               for dashboard in response.json()
-               if dashboard.get('type') == 'dash-db'
-           ]
+async def fetch(
+    client: httpx.AsyncClient,
+    url: str,
+    semaphore: asyncio.Semaphore,
+) -> str:
+    async with semaphore:
+        response = await client.get(url)
+        if response.status_code == httpx.codes.OK:
+            return base64.b64encode(response.content).decode("ascii")
 
-       return dash_list
+
+async def list_dashboards(config: Config) -> list[str]:
+    search_endpoint = f"{config.url}/api/search"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(search_endpoint)
+        dash_list = []
+        if response.status_code == 200:
+            dash_list = [
+                dashboard.get("uid")
+                for dashboard in response.json()
+                if dashboard.get("type") == "dash-db"
+            ]
+
+        return dash_list
 
 
 async def main():
     config = Config()
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     headers["Authorization"] = f"Bearer {os.getenv('GRAFANA_TOKEN')}"
     request_date = date.today()
     client = httpx.AsyncClient()
@@ -41,18 +51,50 @@ async def main():
     dashboard.get_variables()
     dashboard.list_panels()
 
+    render_urls = {}
+
     for panel in dashboard.panels:
-        await panel.render_image()
+        panel.get_render_url()
+        render_urls[panel.panel_id] = panel.render_url
+
+    print(render_urls)
+    timeout = httpx.Timeout(
+        connect=10.0,
+        read=60.0,
+        write=10.0,
+        pool=10.0,
+    )
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        semaphore = asyncio.Semaphore(10)
+
+        results = await asyncio.gather(
+            *(fetch(client, url, semaphore) for url in render_urls.values())
+        )
+
+        panel_results = dict(zip(render_urls, results))
+        for k, v in panel_results.items():
+            for panel in dashboard.panels:
+                if panel.panel_id == k:
+                    panel.embedded_image = v
+
+    # for panel in dashboard.panels:
+    #     await panel.render_image()
 
     main_panels = [panel for panel in dashboard.panels if panel.parent_panel is None]
     main_panels.sort(key=lambda p: p.panel_id)
 
-
     env = Environment(loader=FileSystemLoader("."))
     template = env.get_template("report.j2")
 
-    html = template.render(panels=main_panels, config=config, request_date=request_date, dashboard=dashboard)
+    html = template.render(
+        panels=main_panels,
+        config=config,
+        request_date=request_date,
+        dashboard=dashboard,
+    )
     with open("output_report_new.html", "w", encoding="utf-8") as f:
         f.write(html)
+
 
 asyncio.run(main())
