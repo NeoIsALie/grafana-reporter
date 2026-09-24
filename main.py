@@ -1,27 +1,11 @@
 import asyncio
-import base64
-import os
 from datetime import datetime, timezone
 
 from jinja2 import Environment, FileSystemLoader
 import httpx
-from dotenv import load_dotenv
 
 from config import Config
 from dashboard import Dashboard
-
-load_dotenv()
-
-
-async def fetch(
-    client: httpx.AsyncClient,
-    url: str,
-    semaphore: asyncio.Semaphore,
-) -> str:
-    async with semaphore:
-        response = await client.get(url)
-        if response.status_code == httpx.codes.OK:
-            return base64.b64encode(response.content).decode("ascii")
 
 
 async def list_dashboards(config: Config) -> list[str]:
@@ -41,8 +25,6 @@ async def list_dashboards(config: Config) -> list[str]:
 
 async def main():
     config = Config()
-    headers = {"Content-Type": "application/json"}
-    headers["Authorization"] = f"Bearer {os.getenv('GRAFANA_TOKEN')}"
     request_date = datetime.now(timezone.utc).astimezone()
     client = httpx.AsyncClient()
     dashs = await list_dashboards(config)
@@ -51,32 +33,24 @@ async def main():
     dashboard.get_variables()
     dashboard.list_panels()
 
-    render_urls = {}
-
-    for panel in dashboard.panels:
-        panel.get_render_url()
-        render_urls[panel.panel_id] = panel.render_url
-
-    print(render_urls)
     timeout = httpx.Timeout(
-        connect=10.0,
+        connect=15.0,
         read=60.0,
         write=10.0,
-        pool=10.0,
+        pool=15.0,
     )
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        semaphore = asyncio.Semaphore(10)
+    limits = httpx.Limits(
+        max_connections=20,
+        max_keepalive_connections=20,
+    )
 
-        results = await asyncio.gather(
-            *(fetch(client, url, semaphore) for url in render_urls.values())
+    semaphore = asyncio.Semaphore(5)
+
+    async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
+        await asyncio.gather(
+            *(panel.render_image(client, semaphore) for panel in dashboard.panels)
         )
-
-        panel_results = dict(zip(render_urls, results))
-        for k, v in panel_results.items():
-            for panel in dashboard.panels:
-                if panel.panel_id == k:
-                    panel.embedded_image = v
 
     main_panels = [panel for panel in dashboard.panels if panel.parent_panel is None]
     main_panels.sort(key=lambda p: p.panel_id)
@@ -90,7 +64,7 @@ async def main():
         request_date=request_date,
         dashboard=dashboard,
     )
-    async with open("output_report_new.html", "w", encoding="utf-8") as f:
+    with open("output_report_new.html", "w", encoding="utf-8") as f:
         f.write(html)
 
 

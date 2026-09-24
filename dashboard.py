@@ -52,7 +52,6 @@ class Dashboard:
                             panel_id=panel.get("id"),
                             title=panel.get("title"),
                             panel_type=panel.get("type"),
-                            position=panel["gridPos"],
                             dashboard_uid=self.uid,
                             variables=self.variables,
                         )
@@ -62,7 +61,6 @@ class Dashboard:
                         panel_id=panel.get("id"),
                         title=panel.get("title"),
                         panel_type=panel.get("type"),
-                        position=panel["gridPos"],
                         dashboard_uid=self.uid,
                         variables=self.variables,
                     )
@@ -73,7 +71,6 @@ class Dashboard:
                                 panel_id=extra_panel.get("id"),
                                 title=extra_panel.get("title"),
                                 panel_type=extra_panel.get("type"),
-                                position=extra_panel["gridPos"],
                                 dashboard_uid=self.uid,
                                 variables=self.variables,
                                 parent_panel=extra_panel.get("id"),
